@@ -44,7 +44,6 @@ export async function GET(request: Request) {
     role: profile.role,
     created_at: profile.created_at,
     beta_features: profile.beta_features ? (typeof profile.beta_features === 'string' ? JSON.parse(profile.beta_features) : profile.beta_features) : [],
-    two_factor_enabled: (authUser?.user_metadata?.two_factor_enabled as boolean) ?? false,
     subscription_id: profile.subscription_id ?? null,
     subscription_ends_at: profile.subscription_ends_at ?? null,
     subscription: subscriptionData?.subscriptions ?? null,

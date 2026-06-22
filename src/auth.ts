@@ -20,8 +20,6 @@ export async function auth() {
       email: user.email ?? "",
       name: (user.user_metadata?.full_name as string) ?? user.email ?? "",
       image: (user.user_metadata?.avatar_url as string) ?? null,
-      twoFactorEnabled:
-        (user.user_metadata?.two_factor_enabled as boolean) ?? false,
     },
   };
 }
@@ -29,15 +27,8 @@ export async function auth() {
 /**
  * Sign in via email magic link (or OTP).
  */
-export async function signIn(email: string, options?: { redirectTo?: string }) {
-  const supabase = await createClient();
-  return supabase.auth.signInWithOtp({
-    email,
-    options: {
-      shouldCreateUser: true,
-      emailRedirectTo: options?.redirectTo ?? `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-    },
-  });
+export async function signIn(_email: string, _options?: { redirectTo?: string }) {
+  throw new Error("Not implemented — use signInWithPassword instead");
 }
 
 /**
@@ -46,18 +37,6 @@ export async function signIn(email: string, options?: { redirectTo?: string }) {
 export async function signOut() {
   const supabase = await createClient();
   return supabase.auth.signOut();
-}
-
-/**
- * Verify an OTP code during 2FA.
- */
-export async function verifyOtp(email: string, token: string) {
-  const supabase = await createClient();
-  return supabase.auth.verifyOtp({
-    email,
-    token,
-    type: "email",
-  });
 }
 
 /**

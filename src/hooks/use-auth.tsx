@@ -32,7 +32,7 @@ interface Profile {
 }
 
 interface AuthContextValue {
-  user: { id: string; email: string; name?: string | null; image?: string | null; twoFactorEnabled?: boolean } | null;
+  user: { id: string; email: string; name?: string | null; image?: string | null } | null;
   profile: Profile | null;
   loading: boolean;
   profileLoading: boolean;
@@ -48,7 +48,6 @@ function mapUser(user: User) {
     email: user.email ?? "",
     name: (user.user_metadata?.full_name as string) ?? user.email,
     image: (user.user_metadata?.avatar_url as string) ?? null,
-    twoFactorEnabled: (user.user_metadata?.two_factor_enabled as boolean) ?? false,
   };
 }
 

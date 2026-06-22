@@ -9,7 +9,6 @@ import { TagManager } from '@/components/settings/tag-manager';
 import { ProfileForm } from '@/components/settings/profile-form';
 import { PasswordForm } from '@/components/settings/password-form';
 import { SessionsCard } from '@/components/settings/sessions-card';
-import { TwoFactorForm } from '@/components/settings/two-factor-form';
 import { AppearancePanel } from '@/components/settings/appearance-panel';
 import { SubscriptionCard } from '@/components/settings/subscription-card';
 
@@ -103,7 +102,6 @@ export default function SettingsPage() {
         <TabsContent value="profile" className="space-y-6">
           <ProfileForm />
           <PasswordForm />
-          <TwoFactorForm />
           <SessionsCard />
         </TabsContent>
 
