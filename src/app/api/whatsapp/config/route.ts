@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyPhoneNumber } from '@/lib/whatsapp/meta-api'
 import { encrypt, decrypt } from '@/lib/whatsapp/encryption'
 
@@ -12,7 +12,7 @@ export async function GET() {
     }
     const userId = session.user.id
 
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     const { data: config, error } = await supabase
       .from('whatsapp_config')
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
     }
     const userId = session.user.id
 
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     const body = await request.json()
     const { phone_number_id, waba_id, access_token, verify_token } = body
@@ -185,7 +185,7 @@ export async function DELETE() {
     }
     const userId = session.user.id
 
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     const { error } = await supabase
       .from('whatsapp_config')
