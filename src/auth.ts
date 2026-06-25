@@ -1,19 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { cookies } from "next/headers";
 
-/**
- * Get the current authenticated user session on the server.
- * Compatible with the old NextAuth `auth()` return shape.
- */
-export async function auth() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+const PROJECT_REF = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname.split(".")[0];
 
-  if (error || !user) return null;
-
+function formatUser(user: {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown>;
+}) {
   return {
     user: {
       id: user.id,
@@ -22,6 +17,57 @@ export async function auth() {
       image: (user.user_metadata?.avatar_url as string) ?? null,
     },
   };
+}
+
+/**
+ * Get the current authenticated user session on the server.
+ * Compatible with the old NextAuth `auth()` return shape.
+ *
+ * Uses two strategies:
+ *  1. Standard @supabase/ssr createServerClient (primary)
+ *  2. Direct cookie read + admin client JWT verify (fallback for
+ *     @supabase/ssr v0.10.3 decodeChunkedCookieValue bug on production)
+ */
+export async function auth() {
+  // Strategy 1: standard @supabase/ssr server client
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (user && !error) return formatUser(user);
+
+  // Strategy 2: fallback for @supabase/ssr v0.10.3 cookie-decoding bug on
+  // production. Read the auth cookie directly, extract the JWT, and verify
+  // it via the admin client (service_role key, no cookie dependency).
+  try {
+    const cookieStore = await cookies();
+    const authCookie = cookieStore.get(`sb-${PROJECT_REF}-auth-token`);
+
+    if (authCookie?.value) {
+      let accessToken: string;
+      try {
+        const parsed = JSON.parse(authCookie.value);
+        accessToken = Array.isArray(parsed) ? parsed[0] : parsed.access_token;
+      } catch {
+        accessToken = authCookie.value;
+      }
+
+      if (accessToken) {
+        const admin = createAdminClient();
+        const {
+          data: { user: u },
+          error: e,
+        } = await admin.auth.getUser(accessToken);
+        if (u && !e) return formatUser(u);
+      }
+    }
+  } catch {
+    // Silently continue — both strategies failed
+  }
+
+  return null;
 }
 
 /**
