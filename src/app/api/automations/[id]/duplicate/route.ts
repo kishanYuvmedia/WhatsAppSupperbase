@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function POST(
   _request: Request,
@@ -10,7 +10,7 @@ export async function POST(
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const userId = session.user.id
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: original } = await supabase
     .from('automations')

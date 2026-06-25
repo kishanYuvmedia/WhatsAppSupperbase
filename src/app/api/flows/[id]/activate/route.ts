@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { validateFlowForActivation } from '@/lib/flows/validate'
 
 export async function POST(
@@ -14,7 +14,7 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const userId = session.user.id
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const body = (await request.json().catch(() => null)) as
     | { status?: 'draft' | 'active' | 'archived' }

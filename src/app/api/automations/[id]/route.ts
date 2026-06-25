@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import {
   loadStepsTree,
   replaceSteps,
@@ -23,7 +23,7 @@ export async function GET(
   const { id } = await params
   const user = await requireUser()
   if (!user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: automation } = await supabase
     .from('automations')
@@ -46,7 +46,7 @@ export async function PATCH(
   const { id } = await params
   const user = await requireUser()
   if (!user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const body = await request.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
@@ -124,7 +124,7 @@ export async function DELETE(
   const { id } = await params
   const user = await requireUser()
   if (!user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: existing } = await supabase
     .from('automations')

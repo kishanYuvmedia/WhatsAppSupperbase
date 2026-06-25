@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function GET(
   _request: Request,
@@ -12,7 +12,7 @@ export async function GET(
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: flow } = await supabase
     .from('flows')

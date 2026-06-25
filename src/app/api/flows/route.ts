@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getFlowTemplate } from '@/lib/flows/templates'
 
 async function requireUser() {
@@ -16,7 +16,7 @@ export async function GET() {
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data } = await supabase
     .from('flows')
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const body = (await request.json().catch(() => null)) as
     | {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { toSnakeCase } from '@/lib/utils'
 
 async function requireOwnership(
@@ -16,7 +16,7 @@ async function requireOwnership(
   if (!session?.user?.id) {
     return { ok: false, status: 401, body: { error: 'Unauthorized' } }
   }
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data: flow } = await supabase
     .from('flows')
     .select('id,user_id')
@@ -36,7 +36,7 @@ export async function GET(
   const { id } = await context.params
   const guard = await requireOwnership(id)
   if (!guard.ok) return NextResponse.json(guard.body, { status: guard.status })
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const [flowResult, nodesResult] = await Promise.all([
     supabase.from('flows').select('*').eq('id', id).single(),
@@ -78,7 +78,7 @@ export async function PUT(
   const { id } = await context.params
   const guard = await requireOwnership(id)
   if (!guard.ok) return NextResponse.json(guard.body, { status: guard.status })
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const body = (await request.json().catch(() => null)) as PutBody | null
   if (!body) {
@@ -147,7 +147,7 @@ export async function DELETE(
   const { id } = await context.params
   const guard = await requireOwnership(id)
   if (!guard.ok) return NextResponse.json(guard.body, { status: guard.status })
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   await supabase.from('flows').delete().eq('id', id)
   return NextResponse.json({ ok: true })
