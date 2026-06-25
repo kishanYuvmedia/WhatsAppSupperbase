@@ -3,6 +3,14 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
+  // Skip RSC (React Server Components) requests — they're internal
+  // Next.js router protocol for client-side prefetch/navigation, not
+  // page loads. Intercepting them (redirect, rewrite, etc.) causes
+  // the browser to render the raw RSC payload as visible text.
+  if (request.headers.get("rsc")) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
