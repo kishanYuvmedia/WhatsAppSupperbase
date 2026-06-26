@@ -446,8 +446,8 @@ export function TemplateManager() {
                 placeholder="Enter your template message body. Use {{1}}, {{2}} for variables."
                 value={form.body_text}
                 onChange={(e) => setForm({ ...form, body_text: e.target.value })}
-                rows={4}
-                className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 resize-none"
+                rows={2}
+                className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 resize-none h-20"
               />
             </div>
 
