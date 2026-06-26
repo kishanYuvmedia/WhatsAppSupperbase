@@ -93,12 +93,20 @@ export async function POST(request: Request) {
         }
 
         if (order) {
-          const { column, ascending = true } = order
-          query = query.order(column, { ascending })
+          const orders = Array.isArray(order) ? order : [order]
+          for (const o of orders) {
+            const { column, ascending = true } = o
+            query = query.order(column, { ascending })
+          }
+          query = query.order('id', { ascending: false })
         }
 
-        if (limit) query = query.limit(limit)
-        if (offset) query = query.offset(offset)
+        if (limit && offset !== undefined) {
+          query = query.range(offset, offset + limit - 1)
+        } else {
+          if (limit) query = query.limit(limit)
+          if (offset !== undefined) query = query.range(offset, offset + 1000000)
+        }
 
         if (single) {
           const { data, error } = await query.maybeSingle()

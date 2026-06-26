@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import type { Contact, Tag, ContactTag } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -56,6 +56,7 @@ export default function ContactsPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const fetchIdRef = useRef(0);
 
   // Modals
   const [formOpen, setFormOpen] = useState(false);
@@ -86,6 +87,7 @@ export default function ContactsPage() {
   }, []);
 
   const fetchContacts = useCallback(async () => {
+    const id = ++fetchIdRef.current;
     setLoading(true);
 
     const offset = page * PAGE_SIZE;
@@ -96,7 +98,10 @@ export default function ContactsPage() {
       table: 'contacts',
       select: '*',
       count: true,
-      order: { column: 'created_at', ascending: false },
+      order: [
+        { column: 'created_at', ascending: true },
+        { column: 'name', ascending: true },
+      ],
       limit,
       offset,
     };
@@ -115,14 +120,17 @@ export default function ContactsPage() {
 
     if (json.error) {
       toast.error('Failed to load contacts');
+      if (id !== fetchIdRef.current) return;
       setLoading(false);
       return;
     }
 
+    if (id !== fetchIdRef.current) return;
     setTotalCount(json.count ?? 0);
 
     const data = json.data;
     if (!data || data.length === 0) {
+      if (id !== fetchIdRef.current) return;
       setContacts([]);
       setLoading(false);
       return;
@@ -139,6 +147,7 @@ export default function ContactsPage() {
       }),
     });
     const tagJson = await tagRes.json();
+    if (id !== fetchIdRef.current) return;
     const contactTags = tagJson.data ?? [];
 
     const tagsByContact: Record<string, string[]> = {};
@@ -154,6 +163,7 @@ export default function ContactsPage() {
         .filter(Boolean),
     }));
 
+    if (id !== fetchIdRef.current) return;
     setContacts(enriched);
     setLoading(false);
   }, [page, search, tagsMap]);

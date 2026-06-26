@@ -145,7 +145,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
               <MessageSquare className="h-4 w-4" />
             </div>
             <span className="text-sm font-semibold text-white">
-              YM WhatsApp
+              Marbiz
             </span>
           </Link>
           <button
