@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { CustomField, Tag } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,6 +12,7 @@ import {
   ArrowRight,
   ArrowLeft,
   X,
+  FileText,
 } from 'lucide-react';
 
 type AudienceType = 'all' | 'tags' | 'custom_field' | 'csv';
@@ -88,6 +89,9 @@ export function Step2SelectAudience({
   const [loadingFields, setLoadingFields] = useState(false);
   const [estimatedCount, setEstimatedCount] = useState<number | null>(null);
   const [loadingCount, setLoadingCount] = useState(false);
+  const [csvFileName, setCsvFileName] = useState('');
+  const [isParsing, setIsParsing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Tags are used both by the primary "Filter by Tags" audience type
   // AND by the exclude-list below — so always load once on mount.
@@ -285,6 +289,72 @@ export function Step2SelectAudience({
     onUpdate({ ...audience, customField: { ...prev, ...patch } });
   }
 
+  function parseCSV(text: string): { phone: string; name?: string }[] {
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length < 2) return [];
+
+    const headers = lines[0].split(',').map((h) => h.trim().toLowerCase().replace(/["']/g, ''));
+    const phoneIdx = headers.indexOf('phone');
+    if (phoneIdx === -1) return [];
+
+    const nameIdx = headers.indexOf('name');
+
+    const rows: { phone: string; name?: string }[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const values: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      for (const char of line) {
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          values.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      values.push(current.trim());
+
+      const phone = values[phoneIdx]?.replace(/["']/g, '').trim();
+      if (!phone) continue;
+
+      rows.push({
+        phone,
+        name: nameIdx >= 0 ? values[nameIdx]?.replace(/["']/g, '').trim() || undefined : undefined,
+      });
+    }
+
+    return rows;
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsParsing(true);
+    setCsvFileName(file.name);
+
+    try {
+      const text = await file.text();
+      const rows = parseCSV(text);
+      onUpdate({ ...audience, csvContacts: rows });
+    } catch {
+      setCsvFileName('');
+    } finally {
+      setIsParsing(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  function clearCsv() {
+    setCsvFileName('');
+    onUpdate({ ...audience, csvContacts: [] });
+  }
+
   const isValid =
     audience.type === 'all' ||
     (audience.type === 'tags' && audience.tagIds && audience.tagIds.length > 0) ||
@@ -351,6 +421,66 @@ export function Step2SelectAudience({
           );
         })}
       </div>
+
+      {audience.type === 'csv' && (
+        <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+          <p className="mb-3 text-sm font-medium text-white">Upload CSV</p>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+
+          {csvFileName ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <FileText className="h-5 w-5 text-primary" />
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-sm font-medium text-white">{csvFileName}</p>
+                  <p className="text-xs text-slate-400">
+                    {isParsing
+                      ? 'Parsing…'
+                      : `${(audience.csvContacts ?? []).length} contacts found`}
+                  </p>
+                </div>
+                <button
+                  onClick={clearCsv}
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 hover:bg-slate-800 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full rounded-lg border border-dashed border-slate-700 px-4 py-2 text-sm text-slate-400 transition-colors hover:border-primary/40 hover:text-primary"
+              >
+                Replace file
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isParsing}
+              className="flex w-full cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed border-slate-700 px-4 py-8 text-sm text-slate-400 transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-50"
+            >
+              {isParsing ? (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              ) : (
+                <>
+                  <Upload className="h-6 w-6" />
+                  <span>Click to choose a CSV file</span>
+                  <span className="text-xs text-slate-500">
+                    Must have a &quot;phone&quot; column header
+                  </span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      )}
 
       {audience.type === 'tags' && (
         <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
