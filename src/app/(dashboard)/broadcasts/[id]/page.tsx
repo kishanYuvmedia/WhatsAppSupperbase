@@ -30,6 +30,8 @@ import {
   Filter,
   Download,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -110,6 +112,8 @@ function FunnelChart({ steps }: { steps: FunnelStep[] }) {
   );
 }
 
+const PAGE_SIZE = 20;
+
 const RECIPIENT_STATUSES: readonly RecipientStatus[] = [
   'pending',
   'sent',
@@ -154,6 +158,7 @@ export default function BroadcastDetailPage() {
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     async function fetchData() {
@@ -206,6 +211,34 @@ export default function BroadcastDetailPage() {
         : recipients.filter((r) => r.status === statusFilter),
     [recipients, statusFilter],
   );
+
+  const computedCounts = useMemo(
+    () => ({
+      total: recipients.length,
+      sent: recipients.filter((r) =>
+        ['sent', 'delivered', 'read', 'replied'].includes(r.status),
+      ).length,
+      delivered: recipients.filter((r) =>
+        ['delivered', 'read', 'replied'].includes(r.status),
+      ).length,
+      read: recipients.filter((r) =>
+        ['read', 'replied'].includes(r.status),
+      ).length,
+      replied: recipients.filter((r) => r.status === 'replied').length,
+      failed: recipients.filter((r) => r.status === 'failed').length,
+    }),
+    [recipients],
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filteredRecipients.length / PAGE_SIZE));
+  const paginatedRecipients = useMemo(
+    () => filteredRecipients.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filteredRecipients, page],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter]);
 
   function handleExport() {
     if (!broadcast) return;
@@ -282,10 +315,10 @@ export default function BroadcastDetailPage() {
   const status = getBroadcastStatus(broadcast.status);
 
   const funnelSteps: FunnelStep[] = [
-    { label: 'Sent', value: broadcast.sent_count ?? 0, color: 'bg-primary' },
-    { label: 'Delivered', value: broadcast.delivered_count ?? 0, color: 'bg-teal-500' },
-    { label: 'Read', value: broadcast.read_count ?? 0, color: 'bg-blue-500' },
-    { label: 'Replied', value: broadcast.replied_count ?? 0, color: 'bg-indigo-500' },
+    { label: 'Sent', value: computedCounts.sent, color: 'bg-primary' },
+    { label: 'Delivered', value: computedCounts.delivered, color: 'bg-teal-500' },
+    { label: 'Read', value: computedCounts.read, color: 'bg-blue-500' },
+    { label: 'Replied', value: computedCounts.replied, color: 'bg-indigo-500' },
   ];
 
   return (
@@ -368,43 +401,43 @@ export default function BroadcastDetailPage() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard
           label="Total Recipients"
-          value={broadcast.total_recipients}
-          total={broadcast.total_recipients}
+          value={computedCounts.total}
+          total={computedCounts.total}
           icon={<Users className="h-4 w-4" />}
           color="bg-slate-800 text-slate-300"
         />
         <StatCard
           label="Sent"
-          value={broadcast.sent_count}
-          total={broadcast.total_recipients}
+          value={computedCounts.sent}
+          total={computedCounts.total}
           icon={<Send className="h-4 w-4" />}
           color="bg-primary/10 text-primary"
         />
         <StatCard
           label="Delivered"
-          value={broadcast.delivered_count}
-          total={broadcast.total_recipients}
+          value={computedCounts.delivered}
+          total={computedCounts.total}
           icon={<CheckCheck className="h-4 w-4" />}
           color="bg-teal-500/10 text-teal-400"
         />
         <StatCard
           label="Read"
-          value={broadcast.read_count}
-          total={broadcast.total_recipients}
+          value={computedCounts.read}
+          total={computedCounts.total}
           icon={<Eye className="h-4 w-4" />}
           color="bg-blue-500/10 text-blue-400"
         />
         <StatCard
           label="Replied"
-          value={broadcast.replied_count}
-          total={broadcast.total_recipients}
+          value={computedCounts.replied}
+          total={computedCounts.total}
           icon={<MessageCircle className="h-4 w-4" />}
           color="bg-indigo-500/10 text-indigo-400"
         />
         <StatCard
           label="Failed"
-          value={broadcast.failed_count}
-          total={broadcast.total_recipients}
+          value={computedCounts.failed}
+          total={computedCounts.total}
           icon={<AlertCircle className="h-4 w-4" />}
           color="bg-red-500/10 text-red-400"
         />
@@ -483,61 +516,96 @@ export default function BroadcastDetailPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-slate-800 hover:bg-transparent">
-                  <TableHead className="text-slate-400">Contact</TableHead>
-                  <TableHead className="text-slate-400">Phone</TableHead>
-                  <TableHead className="text-slate-400">Status</TableHead>
-                  <TableHead className="text-slate-400">Sent</TableHead>
-                  <TableHead className="text-slate-400">Delivered</TableHead>
-                  <TableHead className="text-slate-400">Read</TableHead>
-                  <TableHead className="text-slate-400">Error</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRecipients.map((recipient) => {
-                  const rStatus = getRecipientStatus(recipient.status);
-                  return (
-                    <TableRow key={recipient.id} className="border-slate-800">
-                      <TableCell className="font-medium text-white">
-                        {recipient.contact?.name ?? 'Unknown'}
-                      </TableCell>
-                      <TableCell className="text-slate-300">
-                        {recipient.contact?.phone ?? '-'}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${rStatus.classes}`}
-                        >
-                          {rStatus.label}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-slate-400">
-                        {recipient.sent_at
-                          ? new Date(recipient.sent_at).toLocaleString()
-                          : '-'}
-                      </TableCell>
-                      <TableCell className="text-slate-400">
-                        {recipient.delivered_at
-                          ? new Date(recipient.delivered_at).toLocaleString()
-                          : '-'}
-                      </TableCell>
-                      <TableCell className="text-slate-400">
-                        {recipient.read_at
-                          ? new Date(recipient.read_at).toLocaleString()
-                          : '-'}
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate text-xs text-red-400">
-                        {recipient.error_message ?? '-'}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+          <>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-slate-800 hover:bg-transparent">
+                    <TableHead className="text-slate-400">Contact</TableHead>
+                    <TableHead className="text-slate-400">Phone</TableHead>
+                    <TableHead className="text-slate-400">Status</TableHead>
+                    <TableHead className="text-slate-400">Sent</TableHead>
+                    <TableHead className="text-slate-400">Delivered</TableHead>
+                    <TableHead className="text-slate-400">Read</TableHead>
+                    <TableHead className="text-slate-400">Error</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedRecipients.map((recipient) => {
+                    const rStatus = getRecipientStatus(recipient.status);
+                    return (
+                      <TableRow key={recipient.id} className="border-slate-800">
+                        <TableCell className="font-medium text-white">
+                          {recipient.contact?.name ?? 'Unknown'}
+                        </TableCell>
+                        <TableCell className="text-slate-300">
+                          {recipient.contact?.phone ?? '-'}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${rStatus.classes}`}
+                          >
+                            {rStatus.label}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-slate-400">
+                          {recipient.sent_at
+                            ? new Date(recipient.sent_at).toLocaleString()
+                            : '-'}
+                        </TableCell>
+                        <TableCell className="text-slate-400">
+                          {recipient.delivered_at
+                            ? new Date(recipient.delivered_at).toLocaleString()
+                            : '-'}
+                        </TableCell>
+                        <TableCell className="text-slate-400">
+                          {recipient.read_at
+                            ? new Date(recipient.read_at).toLocaleString()
+                            : '-'}
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate text-xs text-red-400">
+                          {recipient.error_message ?? '-'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t border-slate-800 px-4 py-3">
+                <p className="text-sm text-slate-400">
+                  {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredRecipients.length)} of{' '}
+                  {filteredRecipients.length}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="border-slate-700 text-slate-300 hover:bg-slate-800"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                    Previous
+                  </Button>
+                  <span className="text-sm text-slate-400">
+                    Page {page} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="border-slate-700 text-slate-300 hover:bg-slate-800"
+                  >
+                    Next
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
