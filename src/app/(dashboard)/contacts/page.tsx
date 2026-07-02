@@ -28,6 +28,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Search,
   Plus,
@@ -39,6 +40,7 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  AlertTriangle,
 } from 'lucide-react';
 import { ContactForm } from '@/components/contacts/contact-form';
 import { ContactDetailView } from '@/components/contacts/contact-detail-view';
@@ -68,6 +70,9 @@ export default function ContactsPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // All tags for display
   const [tagsMap, setTagsMap] = useState<Record<string, Tag>>({});
@@ -214,6 +219,50 @@ export default function ContactsPage() {
     setDeleteConfirmOpen(true);
   }
 
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === contacts.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(contacts.map((c) => c.id)));
+    }
+  }
+
+  async function handleBulkDelete() {
+    setBulkDeleting(true);
+    const ids = [...selectedIds];
+
+    const res = await fetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'delete',
+        table: 'contacts',
+        filters: [{ column: 'id', operator: 'in', value: ids }],
+      }),
+    });
+    const json = await res.json();
+
+    if (json.error) {
+      toast.error(`Failed to delete contacts: ${json.error}`);
+    } else {
+      toast.success(`${ids.length} contact${ids.length > 1 ? 's' : ''} deleted`);
+      setSelectedIds(new Set());
+      fetchContacts();
+    }
+
+    setBulkDeleting(false);
+    setBulkDeleteOpen(false);
+  }
+
   async function handleDelete() {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -290,11 +339,43 @@ export default function ContactsPage() {
         />
       </div>
 
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-900/80 px-4 py-2.5">
+          <p className="text-sm text-slate-300">
+            <span className="font-medium text-white">{selectedIds.size}</span> selected
+          </p>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedIds(new Set())}
+              className="border-slate-700 text-slate-300 hover:bg-slate-800"
+            >
+              Clear
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setBulkDeleteOpen(true)}
+            >
+              <Trash2 className="size-3.5" />
+              Delete
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="rounded-lg border border-slate-800 overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="border-slate-800 hover:bg-transparent">
+              <TableHead className="text-slate-400 w-10">
+                <Checkbox
+                  checked={contacts.length > 0 && selectedIds.size === contacts.length}
+                  onChange={toggleSelectAll}
+                />
+              </TableHead>
               <TableHead className="text-slate-400">Name</TableHead>
               <TableHead className="text-slate-400">Phone</TableHead>
               <TableHead className="text-slate-400 hidden md:table-cell">Email</TableHead>
@@ -307,7 +388,7 @@ export default function ContactsPage() {
           <TableBody>
             {loading ? (
               <TableRow className="border-slate-800">
-                <TableCell colSpan={7} className="text-center py-12">
+                <TableCell colSpan={8} className="text-center py-12">
                   <div className="flex flex-col items-center gap-2">
                     <Loader2 className="size-6 animate-spin text-primary" />
                     <p className="text-sm text-slate-500">Loading contacts...</p>
@@ -316,7 +397,7 @@ export default function ContactsPage() {
               </TableRow>
             ) : contacts.length === 0 ? (
               <TableRow className="border-slate-800">
-                <TableCell colSpan={7} className="text-center py-12">
+                <TableCell colSpan={8} className="text-center py-12">
                   <div className="flex flex-col items-center gap-2">
                     <Users className="size-8 text-slate-600" />
                     <p className="text-sm text-slate-500">
@@ -343,6 +424,12 @@ export default function ContactsPage() {
                   className="border-slate-800 hover:bg-slate-900/50 cursor-pointer"
                   onClick={() => openDetail(contact.id)}
                 >
+                  <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedIds.has(contact.id)}
+                      onChange={() => toggleSelect(contact.id)}
+                    />
+                  </TableCell>
                   <TableCell className="text-white font-medium">
                     {contact.name || <span className="text-slate-500 italic">Unnamed</span>}
                   </TableCell>
@@ -524,6 +611,39 @@ export default function ContactsPage() {
             >
               {deleting && <Loader2 className="size-4 animate-spin" />}
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation */}
+      <Dialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <DialogContent className="bg-slate-900 border-red-500/30 text-slate-200 sm:max-w-sm">
+          <DialogHeader>
+            <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10">
+              <AlertTriangle className="h-5 w-5 text-red-400" />
+            </div>
+            <DialogTitle className="text-center text-white">Delete {selectedIds.size} contact{selectedIds.size > 1 ? 's' : ''}?</DialogTitle>
+            <DialogDescription className="text-center text-slate-400">
+              This action cannot be undone. All selected contacts and their associated data will be permanently removed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="bg-slate-900 border-slate-700">
+            <Button
+              variant="outline"
+              onClick={() => setBulkDeleteOpen(false)}
+              disabled={bulkDeleting}
+              className="border-slate-700 text-slate-300 hover:bg-slate-800"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+            >
+              {bulkDeleting && <Loader2 className="size-4 animate-spin" />}
+              Delete {selectedIds.size} contact{selectedIds.size > 1 ? 's' : ''}
             </Button>
           </DialogFooter>
         </DialogContent>

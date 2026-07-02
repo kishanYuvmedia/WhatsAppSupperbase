@@ -54,6 +54,7 @@ const SECURITY_HEADERS = [
 ] as const;
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ['192.168.31.102'],
   /**
    * Cache-Control policy.
    *

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import {
@@ -12,7 +12,8 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Upload, FileText, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Upload, FileText, Loader2, CheckCircle, XCircle, Tags } from 'lucide-react';
+import type { Tag } from '@/types';
 
 interface ImportModalProps {
   open: boolean;
@@ -85,11 +86,37 @@ export function ImportModal({ open, onOpenChange, onImported }: ImportModalProps
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{ imported: number; failed: number } | null>(null);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [loadingTags, setLoadingTags] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    async function fetchTags() {
+      setLoadingTags(true);
+      const res = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'select', table: 'tags', order: { column: 'name' } }),
+      });
+      const json = await res.json();
+      if (json.data) setTags(json.data);
+      setLoadingTags(false);
+    }
+    fetchTags();
+  }, [open]);
+
+  function toggleTag(tagId: string) {
+    setSelectedTagIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+    );
+  }
 
   function reset() {
     setFile(null);
     setParsedRows([]);
     setResult(null);
+    setSelectedTagIds([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
@@ -126,6 +153,7 @@ export function ImportModal({ open, onOpenChange, onImported }: ImportModalProps
 
       let imported = 0;
       let failed = 0;
+      const importedIds: string[] = [];
 
       // Batch insert in chunks of 50
       const chunkSize = 50;
@@ -157,17 +185,41 @@ export function ImportModal({ open, onOpenChange, onImported }: ImportModalProps
             const singleRes = await fetch('/api/data', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'insert', table: 'contacts', values: row }),
+              body: JSON.stringify({ action: 'insert', table: 'contacts', values: row, select: true }),
             });
             const singleJson = await singleRes.json();
             if (singleJson.error) {
               failed++;
             } else {
               imported++;
+              if (singleJson.data?.id) importedIds.push(singleJson.data.id);
             }
           }
         } else {
-          imported += json.data?.length ?? chunk.length;
+          const inserted = json.data ?? [];
+          imported += inserted.length;
+          inserted.forEach((c: { id: string }) => {
+            if (c?.id) importedIds.push(c.id);
+          });
+        }
+      }
+
+      // Assign selected tags to imported contacts
+      if (selectedTagIds.length > 0 && importedIds.length > 0) {
+        const tagValues: { contact_id: string; tag_id: string }[] = [];
+        for (const contactId of importedIds) {
+          for (const tagId of selectedTagIds) {
+            tagValues.push({ contact_id: contactId, tag_id: tagId });
+          }
+        }
+        // Batch insert in chunks of 100
+        for (let i = 0; i < tagValues.length; i += 100) {
+          const chunk = tagValues.slice(i, i + 100);
+          await fetch('/api/data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'insert', table: 'contact_tags', values: chunk }),
+          });
         }
       }
 
@@ -268,6 +320,40 @@ export function ImportModal({ open, onOpenChange, onImported }: ImportModalProps
                   ...and {parsedRows.length - 5} more rows
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Tag selector */}
+          {!result && tags.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Tags className="size-3" />
+                Assign tags to imported contacts
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {tags.map((tag) => {
+                  const selected = selectedTagIds.includes(tag.id);
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => toggleTag(tag.id)}
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                        selected
+                          ? 'ring-2 ring-primary ring-offset-1 ring-offset-slate-900'
+                          : 'opacity-60 hover:opacity-100'
+                      }`}
+                      style={{
+                        backgroundColor: tag.color + '20',
+                        color: tag.color,
+                        borderColor: tag.color,
+                      }}
+                    >
+                      {tag.name}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 

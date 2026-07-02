@@ -189,6 +189,8 @@ export async function POST(request: Request) {
         for (const f of filters) {
           if (f.operator === 'eq') {
             query = query.eq(f.column, f.value)
+          } else if (f.operator === 'in') {
+            query = query.in(f.column, f.value)
           }
         }
         const { data, error } = await query
