@@ -124,7 +124,7 @@ export async function PATCH(request: Request) {
 
         const planLimit = subscription.contact_limit ?? 0;
         const currentLimit = currentProfile?.contact_limit ?? 0;
-        const newLimit = isStillActive ? currentLimit + planLimit : planLimit;
+        const newLimit = currentLimit + planLimit;
 
         const { error: profileError } = await admin
           .from('profiles')

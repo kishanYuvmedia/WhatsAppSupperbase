@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useTotalUnread } from "@/hooks/use-total-unread";
@@ -77,6 +77,19 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { profile, signOut } = useAuth();
   const totalUnread = useTotalUnread();
+  const [contactCount, setContactCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!profile) return;
+    fetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'select', table: 'contacts', limit: 1, count: true }),
+    })
+      .then(r => r.json())
+      .then(json => setContactCount(json.count ?? 0))
+      .catch(() => setContactCount(0));
+  }, [profile]);
 
   const allowedMenus = profile?.subscription?.features ?? null;
   const hasMenuRestrictions = Array.isArray(allowedMenus) && allowedMenus.length > 0;
@@ -264,32 +277,59 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
         </nav>
 
         {/* Subscription info */}
-        {profile?.subscription && Array.isArray(profile.subscription.features) && profile.subscription.features.length > 0 && (
+        {(profile?.subscription || (profile?.contact_limit ?? 0) > 0) && (
           <div className="shrink-0 border-t border-slate-800 px-3 py-3">
-            <div className="rounded-lg bg-slate-800/50 px-3 py-2">
-              <div className="flex items-center gap-2 mb-1.5">
-                <CreditCard className="h-3.5 w-3.5 text-primary" />
-                <span className="text-xs font-medium text-white">{profile.subscription.name}</span>
+            <div className="rounded-lg bg-slate-800/50 px-3 py-2 space-y-2">
+              {profile?.subscription && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-xs font-medium text-white">{profile.subscription.name}</span>
+                  </div>
+                  {Array.isArray(profile.subscription.features) && profile.subscription.features.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {profile.subscription.features.map((f, i) => {
+                        const iconMap: Record<string, typeof Check> = {
+                          Broadcasts: Radio,
+                          Automations: Zap,
+                          Flows: Workflow,
+                        };
+                        const Icon = iconMap[f] ?? Check;
+                        return (
+                          <span
+                            key={i}
+                            className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary"
+                          >
+                            <Icon className="h-2.5 w-2.5" />
+                            {f}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                <Users className="h-3 w-3" />
+                {contactCount !== null ? contactCount.toLocaleString() : "..."}
+                {(profile?.contact_limit ?? 0) > 0 && (
+                  <> / {profile!.contact_limit.toLocaleString()}</>
+                )}
               </div>
-              <div className="flex flex-wrap gap-1">
-                {profile.subscription.features.map((f, i) => {
-                  const iconMap: Record<string, typeof Check> = {
-                    Broadcasts: Radio,
-                    Automations: Zap,
-                    Flows: Workflow,
-                  };
-                  const Icon = iconMap[f] ?? Check;
-                  return (
-                    <span
-                      key={i}
-                      className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary"
-                    >
-                      <Icon className="h-2.5 w-2.5" />
-                      {f}
-                    </span>
-                  );
-                })}
-              </div>
+              {(profile?.contact_limit ?? 0) > 0 && contactCount !== null && (
+                <div className="h-1.5 w-full rounded-full bg-slate-700">
+                  <div
+                    className={`h-1.5 rounded-full ${
+                      contactCount >= profile!.contact_limit * 0.8
+                        ? "bg-amber-500"
+                        : "bg-primary"
+                    }`}
+                    style={{
+                      width: `${Math.min(Math.round((contactCount / profile!.contact_limit) * 100), 100)}%`,
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}
