@@ -65,7 +65,7 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    const { userId, status, subscription_id, subscription_ends_at } = await request.json();
+    const { userId, status, subscription_id } = await request.json();
 
     if (!userId) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
@@ -98,18 +98,45 @@ export async function PATCH(request: Request) {
     }
 
     if (subscription_id !== undefined) {
-      const profileUpdates: Record<string, unknown> = { subscription_id: subscription_id || null };
-      if (subscription_ends_at) {
-        profileUpdates.subscription_ends_at = subscription_ends_at;
-      } else if (subscription_id) {
-        profileUpdates.subscription_ends_at = null;
-      }
-      const { error: profileError } = await admin
-        .from('profiles')
-        .update(profileUpdates)
-        .eq('user_id', userId);
+      if (!subscription_id) {
+        const { error: profileError } = await admin
+          .from('profiles')
+          .update({ subscription_id: null, subscription_ends_at: null, contact_limit: 0 })
+          .eq('user_id', userId);
 
-      if (profileError) throw profileError;
+        if (profileError) throw profileError;
+      } else {
+        const [{ data: subscription }, { data: currentProfile }] = await Promise.all([
+          admin.from('subscriptions').select('duration_days, contact_limit').eq('id', subscription_id).single(),
+          admin.from('profiles').select('subscription_id, subscription_ends_at, contact_limit').eq('user_id', userId).maybeSingle(),
+        ]);
+
+        if (!subscription) {
+          return NextResponse.json({ error: 'Subscription not found' }, { status: 404 });
+        }
+
+        const now = new Date();
+        const currentEnd = currentProfile?.subscription_ends_at ? new Date(currentProfile.subscription_ends_at) : null;
+        const isStillActive = currentEnd && currentEnd > now;
+
+        const baseDate = isStillActive ? currentEnd : now;
+        const newEnd = new Date(baseDate.getTime() + subscription.duration_days * 86400000);
+
+        const planLimit = subscription.contact_limit ?? 0;
+        const currentLimit = currentProfile?.contact_limit ?? 0;
+        const newLimit = isStillActive ? currentLimit + planLimit : planLimit;
+
+        const { error: profileError } = await admin
+          .from('profiles')
+          .update({
+            subscription_id,
+            subscription_ends_at: newEnd.toISOString(),
+            contact_limit: newLimit,
+          })
+          .eq('user_id', userId);
+
+        if (profileError) throw profileError;
+      }
     }
 
     return NextResponse.json({ success: true });

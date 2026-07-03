@@ -99,15 +99,10 @@ export default function AdminUsersPage() {
   const handleAssignSubscription = async (userId: string, subscriptionId: string | null) => {
     setAssigningId(userId);
     try {
-      const sub = subscriptionId ? subscriptions.find((s) => s.id === subscriptionId) : null;
-      const subscription_ends_at = sub
-        ? new Date(Date.now() + sub.duration_days * 86400000).toISOString()
-        : null;
-
       const res = await fetch("/api/admin/users", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, subscription_id: subscriptionId, subscription_ends_at }),
+        body: JSON.stringify({ userId, subscription_id: subscriptionId }),
       });
 
       if (!res.ok) {

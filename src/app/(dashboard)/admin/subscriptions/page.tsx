@@ -47,6 +47,7 @@ export default function AdminSubscriptionsPage() {
     price: "",
     duration_days: "30",
     features: [] as string[],
+    contact_limit: "0",
     is_active: true,
   });
 
@@ -73,7 +74,7 @@ export default function AdminSubscriptionsPage() {
   }, [fetchSubscriptions]);
 
   const resetForm = () => {
-    setForm({ name: "", description: "", price: "", duration_days: "30", features: [], is_active: true });
+    setForm({ name: "", description: "", price: "", duration_days: "30", features: [], contact_limit: "0", is_active: true });
     setEditingId(null);
     setShowForm(false);
   };
@@ -85,6 +86,7 @@ export default function AdminSubscriptionsPage() {
       price: String(sub.price),
       duration_days: String(sub.duration_days),
       features: Array.isArray(sub.features) ? [...sub.features] : [],
+      contact_limit: String(sub.contact_limit ?? 0),
       is_active: sub.is_active,
     });
     setEditingId(sub.id);
@@ -114,6 +116,7 @@ export default function AdminSubscriptionsPage() {
         price: parseFloat(form.price) || 0,
         duration_days: parseInt(form.duration_days) || 30,
         features: form.features,
+        contact_limit: parseInt(form.contact_limit) || 0,
         is_active: form.is_active,
       };
 
@@ -241,6 +244,17 @@ export default function AdminSubscriptionsPage() {
                   value={form.duration_days}
                   onChange={(e) => setForm({ ...form, duration_days: e.target.value })}
                   placeholder="e.g. 30"
+                  className="bg-slate-800 border-slate-700 text-white"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300">Contact limit (0 = unlimited)</label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={form.contact_limit}
+                  onChange={(e) => setForm({ ...form, contact_limit: e.target.value })}
+                  placeholder="e.g. 5000"
                   className="bg-slate-800 border-slate-700 text-white"
                 />
               </div>
@@ -375,6 +389,13 @@ export default function AdminSubscriptionsPage() {
                   </span>
                   <span className="text-sm text-slate-400">
                     / {sub.duration_days} days
+                  </span>
+                </div>
+
+                <div className="text-sm text-slate-400">
+                  Contacts:{" "}
+                  <span className="text-slate-300 font-medium">
+                    {sub.contact_limit > 0 ? sub.contact_limit.toLocaleString() : "Unlimited"}
                   </span>
                 </div>
 

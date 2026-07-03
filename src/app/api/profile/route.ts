@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   const [profileResult, authUserResult, subscriptionResult] = await Promise.all([
     admin.from('profiles').select('*').eq('user_id', userId).maybeSingle(),
     admin.auth.admin.getUserById(userId),
-    admin.from('profiles').select('subscription_id, subscription_ends_at, subscriptions(id, name, description, price, duration_days, features, is_active)').eq('user_id', userId).maybeSingle(),
+    admin.from('profiles').select('subscription_id, subscription_ends_at, subscriptions(id, name, description, price, duration_days, features, contact_limit, is_active)').eq('user_id', userId).maybeSingle(),
   ]);
 
   if (profileResult.error) throw profileResult.error;
@@ -44,6 +44,7 @@ export async function GET(request: Request) {
     beta_features: profile.beta_features ? (typeof profile.beta_features === 'string' ? JSON.parse(profile.beta_features) : profile.beta_features) : [],
     subscription_id: profile.subscription_id ?? null,
     subscription_ends_at: profile.subscription_ends_at ?? null,
+    contact_limit: profile.contact_limit ?? 0,
     subscription: subscriptionData?.subscriptions ?? null,
   });
 }

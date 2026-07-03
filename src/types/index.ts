@@ -417,6 +417,7 @@ export interface Subscription {
   price: number;
   duration_days: number;
   features: string[];
+  contact_limit: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;

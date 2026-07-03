@@ -376,19 +376,20 @@ export default function ContactsPage() {
                   onChange={toggleSelectAll}
                 />
               </TableHead>
+              <TableHead className="text-slate-400 w-10 text-xs">S.No.</TableHead>
               <TableHead className="text-slate-400">Name</TableHead>
               <TableHead className="text-slate-400">Phone</TableHead>
               <TableHead className="text-slate-400 hidden md:table-cell">Email</TableHead>
               <TableHead className="text-slate-400 hidden lg:table-cell">Company</TableHead>
               <TableHead className="text-slate-400 hidden md:table-cell">Tags</TableHead>
               <TableHead className="text-slate-400 hidden lg:table-cell">Created</TableHead>
-              <TableHead className="text-slate-400 w-12" />
+              <TableHead className="text-slate-400 w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow className="border-slate-800">
-                <TableCell colSpan={8} className="text-center py-12">
+                <TableCell colSpan={9} className="text-center py-12">
                   <div className="flex flex-col items-center gap-2">
                     <Loader2 className="size-6 animate-spin text-primary" />
                     <p className="text-sm text-slate-500">Loading contacts...</p>
@@ -397,7 +398,7 @@ export default function ContactsPage() {
               </TableRow>
             ) : contacts.length === 0 ? (
               <TableRow className="border-slate-800">
-                <TableCell colSpan={8} className="text-center py-12">
+                <TableCell colSpan={9} className="text-center py-12">
                   <div className="flex flex-col items-center gap-2">
                     <Users className="size-8 text-slate-600" />
                     <p className="text-sm text-slate-500">
@@ -429,6 +430,9 @@ export default function ContactsPage() {
                       checked={selectedIds.has(contact.id)}
                       onChange={() => toggleSelect(contact.id)}
                     />
+                  </TableCell>
+                  <TableCell className="text-slate-500 text-xs tabular-nums w-10">
+                    {page * PAGE_SIZE + contacts.indexOf(contact) + 1}
                   </TableCell>
                   <TableCell className="text-white font-medium">
                     {contact.name || <span className="text-slate-500 italic">Unnamed</span>}

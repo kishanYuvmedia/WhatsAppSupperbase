@@ -79,7 +79,7 @@ function parseCSV(text: string): ParsedRow[] {
 }
 
 export function ImportModal({ open, onOpenChange, onImported }: ImportModalProps) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [file, setFile] = useState<File | null>(null);
@@ -151,27 +151,30 @@ export function ImportModal({ open, onOpenChange, onImported }: ImportModalProps
     try {
       if (!user) throw new Error('Not authenticated');
 
-      const countRes = await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'select',
-          table: 'contacts',
-          limit: 1,
-          count: true,
-        }),
-      });
-      const countJson = await countRes.json();
-      
-      const currentCount = countJson.count || 0;
-      const availableSlots = 2000 - currentCount;
+      const contactLimit = profile?.contact_limit ?? 0;
+      if (contactLimit > 0) {
+        const countRes = await fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'select',
+            table: 'contacts',
+            limit: 1,
+            count: true,
+          }),
+        });
+        const countJson = await countRes.json();
+        
+        const currentCount = countJson.count || 0;
+        const availableSlots = contactLimit - currentCount;
 
-      if (availableSlots <= 0) {
-        throw new Error('Contact limit of 2000 exceeded. Cannot import new contacts.');
-      }
+        if (availableSlots <= 0) {
+          throw new Error(`Contact limit of ${contactLimit} exceeded. Cannot import new contacts.`);
+        }
 
-      if (parsedRows.length > availableSlots) {
-        throw new Error(`Contact limit of 2000 exceeded. You can only import ${availableSlots} more contacts.`);
+        if (parsedRows.length > availableSlots) {
+          throw new Error(`Contact limit of ${contactLimit} exceeded. You can only import ${availableSlots} more contacts.`);
+        }
       }
 
       let imported = 0;

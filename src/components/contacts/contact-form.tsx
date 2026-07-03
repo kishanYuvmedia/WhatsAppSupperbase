@@ -33,7 +33,7 @@ export function ContactForm({
   contactTags = [],
   onSaved,
 }: ContactFormProps) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const isEdit = !!contact;
 
   const [name, setName] = useState('');
@@ -112,19 +112,22 @@ export function ContactForm({
         const json = await res.json();
         if (json.error) throw new Error(json.error);
       } else {
-        const countRes = await fetch('/api/data', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'select',
-            table: 'contacts',
-            limit: 1,
-            count: true,
-          }),
-        });
-        const countJson = await countRes.json();
-        if (countJson.count >= 2000) {
-          throw new Error('Contact limit of 2000 exceeded. Cannot add new contact.');
+        const contactLimit = profile?.contact_limit ?? 0;
+        if (contactLimit > 0) {
+          const countRes = await fetch('/api/data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'select',
+              table: 'contacts',
+              limit: 1,
+              count: true,
+            }),
+          });
+          const countJson = await countRes.json();
+          if (countJson.count >= contactLimit) {
+            throw new Error(`Contact limit of ${contactLimit} exceeded. Cannot add new contact.`);
+          }
         }
 
         const res = await fetch('/api/data', {

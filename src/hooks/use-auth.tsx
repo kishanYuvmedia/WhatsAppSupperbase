@@ -20,6 +20,7 @@ interface Profile {
   beta_features: string[];
   subscription_id: string | null;
   subscription_ends_at: string | null;
+  contact_limit: number;
   subscription: {
     id: string;
     name: string;
@@ -27,6 +28,7 @@ interface Profile {
     price: number;
     duration_days: number;
     features: string[];
+    contact_limit: number;
     is_active: boolean;
   } | null;
 }
@@ -69,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           beta_features: data.beta_features ?? [],
           subscription_id: data.subscription_id ?? null,
           subscription_ends_at: data.subscription_ends_at ?? null,
+          contact_limit: data.contact_limit ?? 0,
           subscription: data.subscription ?? null,
         });
       }
