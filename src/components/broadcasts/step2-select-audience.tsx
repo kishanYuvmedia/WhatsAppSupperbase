@@ -386,18 +386,28 @@ export function Step2SelectAudience({
 
   function toggleTag(tagId: string) {
     const current = audience.tagIds ?? [];
-    const updated = current.includes(tagId)
-      ? current.filter((id) => id !== tagId)
-      : [...current, tagId];
-    onUpdate({ ...audience, tagIds: updated });
+    const isAdding = !current.includes(tagId);
+    const updated = isAdding
+      ? [...current, tagId]
+      : current.filter((id) => id !== tagId);
+    // Prevent same tag in both include and exclude
+    const excludeUpdated = isAdding
+      ? (audience.excludeTagIds ?? []).filter((id) => id !== tagId)
+      : audience.excludeTagIds;
+    onUpdate({ ...audience, tagIds: updated, excludeTagIds: excludeUpdated });
   }
 
   function toggleExcludeTag(tagId: string) {
     const current = audience.excludeTagIds ?? [];
-    const updated = current.includes(tagId)
-      ? current.filter((id) => id !== tagId)
-      : [...current, tagId];
-    onUpdate({ ...audience, excludeTagIds: updated });
+    const isAdding = !current.includes(tagId);
+    const updated = isAdding
+      ? [...current, tagId]
+      : current.filter((id) => id !== tagId);
+    // Prevent same tag in both include and exclude
+    const includeUpdated = isAdding
+      ? (audience.tagIds ?? []).filter((id) => id !== tagId)
+      : audience.tagIds;
+    onUpdate({ ...audience, excludeTagIds: updated, tagIds: includeUpdated });
   }
 
   function updateCustomField(patch: Partial<CustomFieldFilter>) {
