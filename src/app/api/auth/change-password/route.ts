@@ -1,54 +1,47 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const { currentPassword, newPassword } = await request.json();
+    const { email, currentPassword, newPassword } = await request.json();
 
-    if (!currentPassword || !newPassword) {
-      return NextResponse.json({ error: "Current and new password are required" }, { status: 400 });
+    if (!email || !currentPassword || !newPassword) {
+      return NextResponse.json({ error: "Email, current password, and new password are required" }, { status: 400 });
     }
 
     if (newPassword.length < 6) {
       return NextResponse.json({ error: "New password must be at least 6 characters" }, { status: 400 });
     }
 
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() { return cookieStore.getAll(); },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options),
-            );
-          },
-        },
-      },
-    );
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-    // Verify current password by attempting sign-in
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user?.email) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    const usersRes = await fetch(
+      `${supabaseUrl}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
+      { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } },
+    );
+    const usersData = await usersRes.json();
+    const user = usersData?.users?.[0];
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: user.email,
-      password: currentPassword,
+    const verifyRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: serviceKey },
+      body: JSON.stringify({ email, password: currentPassword }),
     });
 
-    if (signInError) {
+    if (!verifyRes.ok) {
       return NextResponse.json({ error: "Current password is incorrect" }, { status: 401 });
     }
 
-    // Update password
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
+    const admin = createAdminClient();
+    const { error: updateError } = await admin.auth.admin.updateUserById(
+      user.id,
+      { password: newPassword },
+    );
 
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });

@@ -45,24 +45,14 @@ export function PasswordForm() {
     setSaving(true);
 
     try {
-      const res = await fetch('/api/auth/login-validate', {
+      const res = await fetch('/api/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: profile.email, password: current }),
+        body: JSON.stringify({ email: profile.email, currentPassword: current, newPassword: next }),
       });
       if (!res.ok) {
-        toast.error('Current password is incorrect');
-        return;
-      }
-
-      const changeRes = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: next }),
-      });
-      if (!changeRes.ok) {
-        const err = await changeRes.json().catch(() => null);
-        toast.error(`Password update failed: ${err?.message ?? changeRes.statusText}`);
+        const err = await res.json().catch(() => null);
+        toast.error(err?.error ?? `Password update failed: ${res.statusText}`);
         return;
       }
 
