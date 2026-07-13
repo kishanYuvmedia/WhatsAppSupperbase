@@ -67,21 +67,35 @@ export function Step4ScheduleSend({
             setEstimatedReach(json.count ?? 0);
           }
         } else if (audience.type === 'tags' && audience.tagIds && audience.tagIds.length > 0) {
-          const res = await fetch('/api/data', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'select',
-              table: 'contact_tags',
-              select: 'contact_id',
-              filters: [{ column: 'tag_id', operator: 'in', value: audience.tagIds }],
-            }),
-          });
-          if (res.ok) {
-            const json = await res.json();
-            const uniqueIds = new Set((json.data ?? []).map((ct: { contact_id: string }) => ct.contact_id));
-            setEstimatedReach(uniqueIds.size);
+          const allContactIds: string[] = [];
+          let page = 0;
+          const PAGE = 5000;
+          // eslint-disable-next-line no-constant-condition
+          while (true) {
+            const res = await fetch('/api/data', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'select',
+                table: 'contact_tags',
+                select: 'contact_id',
+                filters: [{ column: 'tag_id', operator: 'in', value: audience.tagIds }],
+                limit: PAGE,
+                offset: page * PAGE,
+              }),
+            });
+            if (res.ok) {
+              const json = await res.json();
+              const batch = json.data ?? [];
+              allContactIds.push(...batch.map((ct: { contact_id: string }) => ct.contact_id));
+              if (batch.length < PAGE) break;
+              page++;
+            } else {
+              break;
+            }
           }
+          const uniqueIds = new Set(allContactIds);
+          setEstimatedReach(uniqueIds.size);
         } else if (audience.type === 'csv' && audience.csvContacts) {
           setEstimatedReach(audience.csvContacts.length);
         } else {

@@ -225,26 +225,36 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
       audience.tagIds &&
       audience.tagIds.length > 0
     ) {
-      const tagRes = await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'select',
-          table: 'contact_tags',
-          select: 'contact_id',
-          filters: [{ column: 'tag_id', operator: 'in', value: audience.tagIds }],
-        }),
-      });
-      if (!tagRes.ok) {
-        const err = await tagRes.json().catch(() => ({}));
-        throw new Error(`Failed to fetch contact tags: ${err.error || tagRes.statusText}`);
+      const allTagContactIds: string[] = [];
+      let tagPage = 0;
+      const TAG_PAGE = 5000;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const tagRes = await fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'select',
+            table: 'contact_tags',
+            select: 'contact_id',
+            filters: [{ column: 'tag_id', operator: 'in', value: audience.tagIds }],
+            limit: TAG_PAGE,
+            offset: tagPage * TAG_PAGE,
+          }),
+        });
+        if (!tagRes.ok) {
+          const err = await tagRes.json().catch(() => ({}));
+          throw new Error(`Failed to fetch contact tags: ${err.error || tagRes.statusText}`);
+        }
+        const tagJson = await tagRes.json();
+        const batch = tagJson.data ?? [];
+        allTagContactIds.push(...batch.map((ct: { contact_id: string }) => ct.contact_id));
+        if (batch.length < TAG_PAGE) break;
+        tagPage++;
       }
-      const tagJson = await tagRes.json();
 
-      if (tagJson.data && tagJson.data.length > 0) {
-        const uniqueContactIds = [
-          ...new Set(tagJson.data.map((ct: { contact_id: string }) => ct.contact_id).filter(Boolean) as string[]),
-        ];
+      if (allTagContactIds.length > 0) {
+        const uniqueContactIds = [...new Set(allTagContactIds.filter(Boolean))];
         contacts = await fetchContactsByIds(uniqueContactIds);
       }
     } else if (audience.type === 'custom_field' && audience.customField) {
@@ -254,21 +264,35 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
     }
 
     if (audience.excludeTagIds && audience.excludeTagIds.length > 0) {
-      const excludeRes = await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'select',
-          table: 'contact_tags',
-          select: 'contact_id',
-          filters: [{ column: 'tag_id', operator: 'in', value: audience.excludeTagIds }],
-        }),
-      });
-      if (excludeRes.ok) {
-        const excludeJson = await excludeRes.json();
-        const excludedIds = new Set((excludeJson.data ?? []).map((r: { contact_id: string }) => r.contact_id).filter(Boolean) as string[]);
-        contacts = contacts.filter((c) => !excludedIds.has(c.id));
+      const allExcludedIds: string[] = [];
+      let exPage = 0;
+      const EX_PAGE = 5000;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const excludeRes = await fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'select',
+            table: 'contact_tags',
+            select: 'contact_id',
+            filters: [{ column: 'tag_id', operator: 'in', value: audience.excludeTagIds }],
+            limit: EX_PAGE,
+            offset: exPage * EX_PAGE,
+          }),
+        });
+        if (excludeRes.ok) {
+          const excludeJson = await excludeRes.json();
+          const batch = excludeJson.data ?? [];
+          allExcludedIds.push(...batch.map((r: { contact_id: string }) => r.contact_id));
+          if (batch.length < EX_PAGE) break;
+          exPage++;
+        } else {
+          break;
+        }
       }
+      const excludedIds = new Set(allExcludedIds.filter(Boolean));
+      contacts = contacts.filter((c) => !excludedIds.has(c.id));
     }
 
     return contacts;
