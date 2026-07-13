@@ -181,6 +181,7 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
           action: 'select',
           table: 'contacts',
           filters: [{ column: 'id', operator: 'in', value: chunk }],
+          skipUserFilter: true,
         }),
       });
       if (!res.ok) {
@@ -407,6 +408,7 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
         action: 'select',
         table: 'contacts',
         filters: [{ column: 'id', operator: 'in', value: contactIds }],
+        skipUserFilter: true,
       }),
     });
     if (!contactRes.ok) throw new Error('Failed to fetch contacts');
@@ -513,6 +515,7 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
           table: 'broadcast_recipients',
           select: '*, contact:contacts(*)',
           filters: [{ column: 'broadcast_id', operator: 'eq', value: broadcast.id }],
+          skipUserFilter: true,
         }),
       });
       if (!recsRes.ok) throw new Error('Failed to fetch broadcast recipients');

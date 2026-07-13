@@ -196,6 +196,7 @@ export function Step2SelectAudience({
           table: 'contacts',
           select: 'id',
           filters: [{ column: 'id', operator: 'in', value: slice }],
+          skipUserFilter: true,
         }),
       });
       if (!res.ok) break;

@@ -134,6 +134,7 @@ export function Step4ScheduleSend({
                   table: 'contacts',
                   select: 'id',
                   filters: [{ column: 'id', operator: 'in', value: slice }],
+                  skipUserFilter: true,
                 }),
               });
               if (verifyRes.ok) {
